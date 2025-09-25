@@ -1,4 +1,4 @@
-# INBIZ CSV Processor
+# CSV Processor
 
 Un'applicazione web Flask per processare automaticamente i file CSV RAW di Adobe Analytics, separando i contenuti IT/EN e normalizzando i titoli degli articoli.
 
