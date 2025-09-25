@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Anteprima risultati</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+      .container { max-width: 95vw; }
+      .actions { margin-bottom: 16px; display: flex; gap: 12px; align-items: center; }
+      .warning { background: #fff6e5; color: #7a4; padding: 8px 10px; border-radius: 8px; margin: 12px 0; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+      th { background: #f5f5f5; }
+      .small { color: #666; font-size: 14px; }
+      a.button { background: #0057ff; color: #fff; padding: 8px 12px; border-radius: 8px; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="actions">
+        <a href="/" style="color:#0057ff">← Torna all'upload</a>
+        {% if batch_token %}
+          <a href="/batch_summary/{{ batch_token }}" style="color:#0057ff">← Torna al riepilogo batch</a>
+        {% endif %}
+        {% if split_done %}
+          <a class="button" href="/download_xlsx/{{ token }}">Scarica XLSX (IT/EN)</a>
+        {% endif %}
+      </div>
+
+      {% if not split_done %}
+        <form action="/reprocess" method="post" style="margin:8px 0 16px; display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
+          <input type="hidden" name="token" value="{{ token }}" />
+          <button class="button" type="submit" name="action" value="split">Elabora IT/EN</button>
+        </form>
+      {% endif %}
+      {% if split_done and (is_channels or is_traffic) %}
+        <form action="/reprocess" method="post" style="margin:8px 0 16px; display:flex; gap:8px; align-items:center; flex-wrap: wrap;">
+          <input type="hidden" name="token" value="{{ token }}" />
+          <button class="button" type="submit" name="action" value="normalize">Normalizza ArticleKey</button>
+        </form>
+      {% endif %}
+
+      {% if split_done and (is_channels or is_traffic) %}
+        <h3>Anteprima Articoli IT</h3>
+        <table>
+          <thead>
+            <tr>
+              {% for c in it_columns %}
+                <th>{{ c }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in it_rows %}
+            <tr>
+              {% for c in it_columns %}
+                <td>{{ r.get(c) }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <h3>Anteprima Articoli EN</h3>
+        <table>
+          <thead>
+            <tr>
+              {% for c in en_columns %}
+                <th>{{ c }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in en_rows %}
+            <tr>
+              {% for c in en_columns %}
+                <td>{{ r.get(c) }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% elif not split_done %}
+        <h3>Anteprima file originale</h3>
+        <table>
+          <thead>
+            <tr>
+              {% for c in orig_columns %}
+                <th>{{ c }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in orig_rows %}
+            <tr>
+              {% for c in orig_columns %}
+                <td>{{ r.get(c) }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <!-- non-channels, split done path -->
+        <table>
+          <thead>
+            <tr>
+              {% for c in columns %}
+                <th>{{ c }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              {% for c in columns %}
+                <td>{{ r.get(c) }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    </div>
+  </body>
+  </html>
+
+

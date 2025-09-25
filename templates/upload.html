@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>INBIZ CSV Processor</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+      .container { max-width: 900px; margin: 0 auto; }
+      .dropzone { border: 2px dashed #888; padding: 40px; text-align: center; border-radius: 12px; color: #444; }
+      .dropzone.dragover { border-color: #0057ff; color: #0057ff; background: #f5f8ff; }
+      .actions { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
+      button { background: #0057ff; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+      button:disabled { background: #999; cursor: not-allowed; }
+      .hint { color: #666; font-size: 14px; margin-top: 8px; }
+      .flash { background: #ffe8e8; color: #a00; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px; }
+      a { color: #0057ff; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+      <div class="flash">{{ messages[0] }}</div>
+      {% endif %}
+      {% endwith %}
+
+      <h2>Carica CSV RAW da Adobe (drag & drop)</h2>
+      <form id="form" action="/process" method="post" enctype="multipart/form-data">
+        <div id="drop" class="dropzone">
+          Trascina qui il CSV oppure clicca per selezionarlo
+          <div class="hint">Vengono riconosciute automaticamente le colonne URL (Page/URL/Path)</div>
+          <input id="file" type="file" name="file" accept=".csv" style="display:none" />
+        </div>
+        <div class="actions">
+          <button id="submit" type="submit" disabled>Elabora</button>
+          <span id="filename"></span>
+        </div>
+      </form>
+
+      <hr style="margin:32px 0;" />
+      <h3>Elaborazione multipla</h3>
+      <form id="form-multi" action="/process_batch" method="post" enctype="multipart/form-data">
+        <div id="drop-multi" class="dropzone">
+          Trascina qui più CSV oppure clicca per selezionarli
+          <input id="files" type="file" name="files" accept=".csv" multiple style="display:none" />
+        </div>
+        <div class="actions">
+          <button id="submit-multi" type="submit" disabled>Elabora tutti</button>
+          <span id="filenames"></span>
+        </div>
+      </form>
+
+      <p class="hint">
+        I titoli vengono estratti dall'URL (segmento finale), puliti da dash e punteggiatura, e
+        resi in formato frase (prima lettera maiuscola).
+      </p>
+    </div>
+    <script>
+      const drop = document.getElementById('drop');
+      const input = document.getElementById('file');
+      const submit = document.getElementById('submit');
+      const nameSpan = document.getElementById('filename');
+
+      drop.addEventListener('click', () => input.click());
+      drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
+      drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+      drop.addEventListener('drop', (e) => {
+        e.preventDefault();
+        drop.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          input.files = e.dataTransfer.files;
+          nameSpan.textContent = e.dataTransfer.files[0].name;
+          submit.disabled = false;
+        }
+      });
+      input.addEventListener('change', () => {
+        if (input.files && input.files[0]) {
+          nameSpan.textContent = input.files[0].name;
+          submit.disabled = false;
+        }
+      });
+
+      const dropM = document.getElementById('drop-multi');
+      const inputsM = document.getElementById('files');
+      const submitM = document.getElementById('submit-multi');
+      const namesM = document.getElementById('filenames');
+      dropM.addEventListener('click', () => inputsM.click());
+      dropM.addEventListener('dragover', (e) => { e.preventDefault(); dropM.classList.add('dragover'); });
+      dropM.addEventListener('dragleave', () => dropM.classList.remove('dragover'));
+      dropM.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropM.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
+          inputsM.files = e.dataTransfer.files;
+          namesM.textContent = Array.from(e.dataTransfer.files).map(f => f.name).join(', ');
+          submitM.disabled = false;
+        }
+      });
+      inputsM.addEventListener('change', () => {
+        if (inputsM.files && inputsM.files.length) {
+          namesM.textContent = Array.from(inputsM.files).map(f => f.name).join(', ');
+          submitM.disabled = false;
+        }
+      });
+    </script>
+  </body>
+  </html>
+
+

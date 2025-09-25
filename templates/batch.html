@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Elaborazione multipla</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+      th { background: #f5f5f5; }
+      .ok { color: #0a0; }
+      .err { color: #a00; }
+      a.button { background: #0057ff; color: #fff; padding: 6px 10px; border-radius: 8px; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <h2>Riepilogo elaborazione</h2>
+    <p><a href="/">← Torna all'upload</a></p>
+    <form action="/process_batch_run" method="post" style="margin-bottom:12px;">
+      {% for it in items %}
+        {% if it.token %}
+          <input type="hidden" name="tokens" value="{{ it.token }}" />
+        {% endif %}
+      {% endfor %}
+      <input type="hidden" name="batch_token" value="{{ batch_token }}" />
+      <button class="button" type="submit">Elabora tutti (split + normalizza + unisci)</button>
+    </form>
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Tipo</th>
+          <th>Stato</th>
+          <th>Anteprima</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          <td>{{ it.filename }}</td>
+          <td>{{ it.type }}</td>
+          <td class="{{ 'ok' if it.status=='OK' else 'err' }}">{{ it.status }}</td>
+          <td>
+            {% if it.token %}
+              <a class="button" href="/preview/{{ it.token }}">Apri anteprima</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+  </html>
+
+

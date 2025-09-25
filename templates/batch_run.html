@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Risultato batch</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+      a.button { background: #0057ff; color: #fff; padding: 8px 12px; border-radius: 8px; text-decoration: none; margin-right: 8px; }
+      ul { line-height: 1.7; }
+    </style>
+  </head>
+  <body>
+    <h2>Batch completato</h2>
+    <p>
+      <a href="/">← Torna all'upload</a> | 
+      <a href="/batch_summary/{{ batch_token }}">← Torna al riepilogo</a>
+    </p>
+    <p>
+      {% if links.channels_xlsx %}
+        <a class="button" href="{{ links.channels_xlsx }}">Scarica XLSX Canali (IT/EN)</a>
+      {% endif %}
+      {% if links.traffic_xlsx %}
+        <a class="button" href="{{ links.traffic_xlsx }}">Scarica XLSX Traffico (IT/EN)</a>
+      {% endif %}
+      {% if links.combined_xlsx %}
+        <a class="button" href="{{ links.combined_xlsx }}">Scarica XLSX Combinato</a>
+      {% endif %}
+    </p>
+    <h3>Statistiche output</h3>
+    <ul>
+      {% for typ, lang, n in outputs_meta %}
+        <li>{{ typ }} - {{ lang }}: {{ n }} righe</li>
+      {% endfor %}
+    </ul>
+    <p class="hint">Per controllo qualità, puoi aprire le anteprime dei singoli file dalla pagina precedente.</p>
+  </body>
+  </html>
+
+

@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Risultati elaborazione</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; }
+      table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+      th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+      th { background: #f5f5f5; }
+      a.button { background: #0057ff; color: #fff; padding: 8px 12px; border-radius: 8px; text-decoration: none; margin-right: 8px; }
+      .summary { background: #f9f9f9; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+      .table-section { margin-bottom: 30px; }
+      .table-section h3 { color: #333; border-bottom: 2px solid #0057ff; padding-bottom: 5px; }
+    </style>
+  </head>
+  <body>
+    <h2>Risultati elaborazione</h2>
+    <p><a href="/">← Torna all'upload</a></p>
+    
+    <div class="summary">
+      <h3>Resoconto</h3>
+      <p><strong>File originale:</strong> {{ original_counts.channels + original_counts.traffic }} righe totali</p>
+      <p><strong>Canali:</strong> {{ original_counts.channels }} righe originali → {{ results.channels_it|length + results.channels_en|length }} righe finali</p>
+      <p><strong>Traffico:</strong> {{ original_counts.traffic }} righe originali → {{ results.traffic_it|length + results.traffic_en|length }} righe finali</p>
+    </div>
+    
+    <div class="actions">
+      {% if xlsx_links.channels %}
+        <a class="button" href="{{ xlsx_links.channels }}">Scarica Channels</a>
+      {% endif %}
+      {% if xlsx_links.traffic %}
+        <a class="button" href="{{ xlsx_links.traffic }}">Scarica Traffic</a>
+      {% endif %}
+      {% if xlsx_links.combined %}
+        <a class="button" href="{{ xlsx_links.combined }}">Scarica File Unico</a>
+      {% endif %}
+    </div>
+    
+    
+    {% if not results.channels_it.empty %}
+    <div class="table-section">
+      <h3>IT Channels ({{ results.channels_it|length }} righe)</h3>
+      
+      <table>
+        <thead>
+          <tr>
+            {% for col in results.channels_it.columns %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in results.channels_it.head(50).to_dict(orient="records") %}
+          <tr>
+            {% for col in results.channels_it.columns %}
+              <td>{{ row[col] }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if results.channels_it|length > 50 %}
+        <p><em>Mostrate le prime 50 righe su {{ results.channels_it|length }} totali</em></p>
+      {% endif %}
+    </div>
+    {% endif %}
+    
+    {% if not results.channels_en.empty %}
+    <div class="table-section">
+      <h3>EN Channels ({{ results.channels_en|length }} righe)</h3>
+      
+      <table>
+        <thead>
+          <tr>
+            {% for col in results.channels_en.columns %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in results.channels_en.head(50).to_dict(orient="records") %}
+          <tr>
+            {% for col in results.channels_en.columns %}
+              <td>{{ row[col] }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if results.channels_en|length > 50 %}
+        <p><em>Mostrate le prime 50 righe su {{ results.channels_en|length }} totali</em></p>
+      {% endif %}
+    </div>
+    {% endif %}
+    
+    {% if not results.traffic_it.empty %}
+    <div class="table-section">
+      <h3>IT Traffic ({{ results.traffic_it|length }} righe)</h3>
+      <table>
+        <thead>
+          <tr>
+            {% for col in results.traffic_it.columns %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in results.traffic_it.head(50).to_dict(orient="records") %}
+          <tr>
+            {% for col in results.traffic_it.columns %}
+              <td>{{ row[col] }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if results.traffic_it|length > 50 %}
+        <p><em>Mostrate le prime 50 righe su {{ results.traffic_it|length }} totali</em></p>
+      {% endif %}
+    </div>
+    {% endif %}
+    
+    {% if not results.traffic_en.empty %}
+    <div class="table-section">
+      <h3>EN Traffic ({{ results.traffic_en|length }} righe)</h3>
+      <table>
+        <thead>
+          <tr>
+            {% for col in results.traffic_en.columns %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in results.traffic_en.head(50).to_dict(orient="records") %}
+          <tr>
+            {% for col in results.traffic_en.columns %}
+              <td>{{ row[col] }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if results.traffic_en|length > 50 %}
+        <p><em>Mostrate le prime 50 righe su {{ results.traffic_en|length }} totali</em></p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </body>
+</html>
