@@ -26,7 +26,23 @@ Un'applicazione web Flask per processare automaticamente i file CSV RAW di Adobe
 - **Canali**: Grafico a torta (distribuzione) + Grafico a barre (confronto per articolo)
 - **Traffico**: Grafico a barre (confronto per articolo)
 
-## 🛠️ Installazione
+## 🚀 Deployment su Render.com
+
+### **Deploy automatico:**
+1. **Fai fork** di questa repository
+2. **Vai su [Render.com](https://render.com)** e crea un account
+3. **Clicca "New +"** → **"Web Service"**
+4. **Collega GitHub** e seleziona la repository
+5. **Configurazione**:
+   - **Name**: `inbiz-csv-processor`
+   - **Environment**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python app.py`
+6. **Clicca "Create Web Service"**
+
+L'applicazione sarà disponibile su `https://inbiz-csv-processor.onrender.com`
+
+## 🛠️ Installazione locale
 
 1. **Clona la repository**:
 ```bash
@@ -60,10 +76,14 @@ inbiz-csv-processor/
 ├── inbiz_pipeline.py      # Logica di parsing dei CSV
 ├── url_title.py          # Estrazione e normalizzazione titoli
 ├── requirements.txt      # Dipendenze Python
+├── render.yaml           # Configurazione Render.com
+├── Procfile              # Comando di avvio
 ├── templates/            # Template HTML
 │   ├── upload.html       # Pagina di upload
 │   ├── confirm.html      # Pagina di conferma
 │   └── results.html      # Pagina risultati
+├── .gitignore           # File da ignorare
+├── LICENSE              # Licenza MIT
 └── README.md            # Questo file
 ```
 
