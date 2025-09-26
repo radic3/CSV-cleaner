@@ -146,8 +146,8 @@ def write_templates(traf_agg: pd.DataFrame, chan_agg: pd.DataFrame, out_xlsx: st
         make_entries(traf_agg,"EN").to_excel(writer, sheet_name="TEMPLATE ENTRIES EN", index=False)
         make_exits(traf_agg,"IT").to_excel(writer, sheet_name="TEMPLATE EXITS ITA", index=False)
         make_exits(traf_agg,"EN").to_excel(writer, sheet_name="TEMPLATE EXITS EN", index=False)
-        make_channels(chan_agg,"IT").to_excel(writer, sheet_name="INBIZ - canali di acquisizione ", index=False)
-        make_channels(chan_agg,"EN").to_excel(writer, sheet_name="INBIZ - canali di acquisizi (EN", index=False)
+        make_channels(chan_agg,"IT").to_excel(writer, sheet_name="Channels - IT", index=False)
+        make_channels(chan_agg,"EN").to_excel(writer, sheet_name="Channels - EN", index=False)
 
 def qc_against_ristrutturato(traf_agg, chan_agg, traf_ristr_xlsx=None, chan_ristr_xlsx=None):
     """Optional: compare with provided 'RISTRUTTURATO' files and return QC summary DataFrames."""

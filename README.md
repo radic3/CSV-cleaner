@@ -18,9 +18,9 @@ Un'applicazione web Flask per processare automaticamente i file CSV RAW di Adobe
 ## 🎯 Output
 
 ### File generati:
-- `INBIZ_Canali_.xlsx` - Dati di canalizzazione con grafici
-- `INBIZ_Traffico_.xlsx` - Dati di traffico con grafici  
-- `INBIZ_Completo_.xlsx` - File unico con tutti i dati
+- `Channels_.xlsx` - Dati di canalizzazione con grafici
+- `Traffic_.xlsx` - Dati di traffico con grafici  
+- `Combined_.xlsx` - File unico con tutti i dati
 
 ### Grafici inclusi:
 - **Canali**: Grafico a torta (distribuzione) + Grafico a barre (confronto per articolo)
@@ -73,7 +73,7 @@ L'applicazione sarà disponibile su `http://localhost:8090`
 ```
 csv-cleaner/
 ├── app.py                 # Applicazione Flask principale
-├── inbiz_pipeline.py      # Logica di parsing dei CSV
+├── csv_pipeline.py        # Logica di parsing dei CSV
 ├── url_title.py          # Estrazione e normalizzazione titoli
 ├── requirements.txt      # Dipendenze Python
 ├── render.yaml           # Configurazione Render.com
@@ -140,4 +140,4 @@ Per problemi o domande, apri una issue su GitHub.
 
 ---
 
-**Sviluppato per INBIZ** - Automazione del processing dei dati Adobe Analytics
+**CSV Cleaner** - Automazione del processing dei dati Adobe Analytics

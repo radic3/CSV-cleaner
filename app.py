@@ -8,7 +8,7 @@ from typing import Optional
 import pandas as pd
   # Use non-interactive backend
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash
-from inbiz_pipeline import parse_channels, parse_traffic
+from csv_pipeline import parse_channels, parse_traffic
 
 from url_title import extract_article_title
 
@@ -102,7 +102,7 @@ def _build_channels_xlsx_from_raw(csv_path: str) -> str:
     ch_cols = ["Organic Search","Direct","Internal traffic","Referring Domains","Social Networks"]
     it = df[df["lang"] == "IT"][ ["ArticleKey"] + ch_cols ].copy()
     en = df[df["lang"] == "EN"][ ["ArticleKey"] + ch_cols ].copy()
-    tmp = tempfile.NamedTemporaryFile(prefix="inbiz_channels_", suffix=".xlsx", delete=False)
+    tmp = tempfile.NamedTemporaryFile(prefix="channels_", suffix=".xlsx", delete=False)
     xlsx_path = tmp.name
     tmp.close()
     with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
@@ -116,7 +116,7 @@ def _build_traffic_xlsx_from_raw(csv_path: str) -> str:
     cols = ["Entries","Exit Rate","Time Spent per Visit (seconds)","Unique Visitors","Page Views"]
     it = df[df["lang"] == "IT"][ ["ArticleKey"] + cols ].copy()
     en = df[df["lang"] == "EN"][ ["ArticleKey"] + cols ].copy()
-    tmp = tempfile.NamedTemporaryFile(prefix="inbiz_traffic_", suffix=".xlsx", delete=False)
+    tmp = tempfile.NamedTemporaryFile(prefix="traffic_", suffix=".xlsx", delete=False)
     xlsx_path = tmp.name
     tmp.close()
     with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
@@ -323,7 +323,7 @@ def process():
     try:
         content = file.read()
         # Persist original upload immediately for downstream parsing
-        orig_tmp = tempfile.NamedTemporaryFile(prefix="inbiz_orig_", suffix=".csv", delete=False)
+        orig_tmp = tempfile.NamedTemporaryFile(prefix="original_", suffix=".csv", delete=False)
         orig_path = orig_tmp.name
         orig_tmp.write(content)
         orig_tmp.flush()
@@ -351,7 +351,7 @@ def process():
 
     # persist original and processed for later reprocessing
     token = str(uuid.uuid4())
-    proc_tmp = tempfile.NamedTemporaryFile(prefix="inbiz_proc_", suffix=".csv", delete=False)
+    proc_tmp = tempfile.NamedTemporaryFile(prefix="processed_", suffix=".csv", delete=False)
     proc_path = proc_tmp.name
     proc_tmp.close()
     csv_df.to_csv(proc_path, index=False)
@@ -490,7 +490,7 @@ def process_all():
     
     # Channels XLSX
     if not final_results["channels_it"].empty or not final_results["channels_en"].empty:
-        tmp = tempfile.NamedTemporaryFile(prefix="INBIZ_Canali_", suffix=".xlsx", delete=False)
+        tmp = tempfile.NamedTemporaryFile(prefix="Channels_", suffix=".xlsx", delete=False)
         p = tmp.name; tmp.close()
         with pd.ExcelWriter(p, engine="openpyxl") as w:
             if not final_results["channels_it"].empty:
@@ -508,7 +508,7 @@ def process_all():
     
     # Traffic XLSX
     if not final_results["traffic_it"].empty or not final_results["traffic_en"].empty:
-        tmp = tempfile.NamedTemporaryFile(prefix="INBIZ_Traffico_", suffix=".xlsx", delete=False)
+        tmp = tempfile.NamedTemporaryFile(prefix="Traffic_", suffix=".xlsx", delete=False)
         p = tmp.name; tmp.close()
         with pd.ExcelWriter(p, engine="openpyxl") as w:
             if not final_results["traffic_it"].empty:
@@ -524,7 +524,7 @@ def process_all():
     # Combined XLSX
     if (not final_results["channels_it"].empty or not final_results["channels_en"].empty) and \
        (not final_results["traffic_it"].empty or not final_results["traffic_en"].empty):
-        tmp = tempfile.NamedTemporaryFile(prefix="INBIZ_Completo_", suffix=".xlsx", delete=False)
+        tmp = tempfile.NamedTemporaryFile(prefix="Combined_", suffix=".xlsx", delete=False)
         p = tmp.name; tmp.close()
         with pd.ExcelWriter(p, engine="openpyxl") as w:
             if not final_results["channels_it"].empty:
@@ -591,7 +591,7 @@ def process_batch_run():
     if any(k[0]=="channels" for k in outputs.keys()):
         it = outputs.get(("channels","IT"), pd.DataFrame())
         en = outputs.get(("channels","EN"), pd.DataFrame())
-        tmp = tempfile.NamedTemporaryFile(prefix="inbiz_channels_batch_", suffix=".xlsx", delete=False)
+        tmp = tempfile.NamedTemporaryFile(prefix="channels_batch_", suffix=".xlsx", delete=False)
         p = tmp.name; tmp.close()
         with pd.ExcelWriter(p, engine="openpyxl") as w:
             if not it.empty: it.to_excel(w, sheet_name="Articoli_IT", index=False)
@@ -601,7 +601,7 @@ def process_batch_run():
     if any(k[0]=="traffic" for k in outputs.keys()):
         it = outputs.get(("traffic","IT"), pd.DataFrame())
         en = outputs.get(("traffic","EN"), pd.DataFrame())
-        tmp = tempfile.NamedTemporaryFile(prefix="inbiz_traffic_batch_", suffix=".xlsx", delete=False)
+        tmp = tempfile.NamedTemporaryFile(prefix="traffic_batch_", suffix=".xlsx", delete=False)
         p = tmp.name; tmp.close()
         with pd.ExcelWriter(p, engine="openpyxl") as w:
             if not it.empty: it.to_excel(w, sheet_name="Articoli_IT", index=False)
@@ -611,7 +611,7 @@ def process_batch_run():
     
     # Build combined XLSX with both channels and traffic
     if any(k[0]=="channels" for k in outputs.keys()) and any(k[0]=="traffic" for k in outputs.keys()):
-        tmp = tempfile.NamedTemporaryFile(prefix="inbiz_combined_batch_", suffix=".xlsx", delete=False)
+        tmp = tempfile.NamedTemporaryFile(prefix="combined_batch_", suffix=".xlsx", delete=False)
         p = tmp.name; tmp.close()
         with pd.ExcelWriter(p, engine="openpyxl") as w:
             # Channels sheets
@@ -637,7 +637,7 @@ def process_batch():
     for f in files:
         try:
             content = f.read()
-            orig_tmp = tempfile.NamedTemporaryFile(prefix="inbiz_orig_", suffix=".csv", delete=False)
+            orig_tmp = tempfile.NamedTemporaryFile(prefix="original_", suffix=".csv", delete=False)
             orig_path = orig_tmp.name
             orig_tmp.write(content)
             orig_tmp.flush(); orig_tmp.close()
@@ -648,7 +648,7 @@ def process_batch():
             original_preview = df.head(100)
 
             token = str(uuid.uuid4())
-            proc_tmp = tempfile.NamedTemporaryFile(prefix="inbiz_proc_", suffix=".csv", delete=False)
+            proc_tmp = tempfile.NamedTemporaryFile(prefix="processed_", suffix=".csv", delete=False)
             proc_path = proc_tmp.name
             proc_tmp.close()
             processed.to_csv(proc_path, index=False)
@@ -682,7 +682,7 @@ def download(token: str):
     if not path or not os.path.exists(path):
         flash("File non trovato o scaduto.")
         return redirect(url_for("index"))
-    return send_file(path, as_attachment=True, download_name="inbiz_processed.csv")
+    return send_file(path, as_attachment=True, download_name="processed_data.csv")
 
 
 @app.route("/download_xlsx/<token>")
@@ -696,7 +696,7 @@ def download_xlsx(token: str):
     if not path or not os.path.exists(path):
         flash("File XLSX non disponibile per questo upload.")
         return redirect(url_for("index"))
-    fname = "inbiz_channels_ristrutturato.xlsx" if stored and stored.file_type == 'channels' else "inbiz_traffic_ristrutturato.xlsx"
+    fname = "channels_ristrutturato.xlsx" if stored and stored.file_type == 'channels' else "traffic_ristrutturato.xlsx"
     return send_file(path, as_attachment=True, download_name=fname)
 
 
