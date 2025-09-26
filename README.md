@@ -1,4 +1,4 @@
-# INBIZ CSV Processor
+# CSV Cleaner
 
 Un'applicazione web Flask per processare automaticamente i file CSV RAW di Adobe Analytics, separando i contenuti IT/EN e normalizzando i titoli degli articoli.
 
@@ -34,20 +34,20 @@ Un'applicazione web Flask per processare automaticamente i file CSV RAW di Adobe
 3. **Clicca "New +"** → **"Web Service"**
 4. **Collega GitHub** e seleziona la repository
 5. **Configurazione**:
-   - **Name**: `inbiz-csv-processor`
+   - **Name**: `csv-cleaner`
    - **Environment**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `python app.py`
 6. **Clicca "Create Web Service"**
 
-L'applicazione sarà disponibile su `https://inbiz-csv-processor.onrender.com`
+L'applicazione sarà disponibile su `https://csv-cleaner.onrender.com`
 
 ## 🛠️ Installazione locale
 
 1. **Clona la repository**:
 ```bash
-git clone https://github.com/[username]/inbiz-csv-processor.git
-cd inbiz-csv-processor
+git clone https://github.com/radic3/csv-cleaner.git
+cd csv-cleaner
 ```
 
 2. **Crea ambiente virtuale**:
@@ -71,7 +71,7 @@ L'applicazione sarà disponibile su `http://localhost:8090`
 ## 📁 Struttura del progetto
 
 ```
-inbiz-csv-processor/
+csv-cleaner/
 ├── app.py                 # Applicazione Flask principale
 ├── inbiz_pipeline.py      # Logica di parsing dei CSV
 ├── url_title.py          # Estrazione e normalizzazione titoli

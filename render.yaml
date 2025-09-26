@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: inbiz-csv-processor
+    name: csv-cleaner
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
@@ -9,4 +9,4 @@ services:
       - key: PORT
         value: 10000
       - key: PYTHON_VERSION
-        value: 3.9.18
+        value: 3.11.9
