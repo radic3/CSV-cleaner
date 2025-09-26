@@ -10,3 +10,5 @@ services:
         value: 10000
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: PYENV_VERSION
+        value: 3.11.9
