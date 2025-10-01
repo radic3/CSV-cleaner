@@ -4,11 +4,12 @@ Un'applicazione web Flask per processare automaticamente i file CSV RAW di Adobe
 
 ## 🚀 Funzionalità
 
-- **Upload multiplo**: Carica più file CSV contemporaneamente
+- **Upload multiplo**: Carica uno o più file CSV contemporaneamente
 - **Separazione IT/EN**: Riconosce automaticamente i contenuti italiani e inglesi
 - **Normalizzazione titoli**: Estrae e pulisce i titoli degli articoli dagli URL
 - **Grafici nativi Excel**: Genera grafici dinamici e modificabili nei file XLSX
 - **Download multipli**: File separati per Canali, Traffico e un file completo
+- **Processo semplificato**: Upload → Conferma → Elaborazione → Risultati
 
 ## 📊 Tipi di file supportati
 
@@ -79,9 +80,9 @@ csv-cleaner/
 ├── render.yaml           # Configurazione Render.com
 ├── Procfile              # Comando di avvio
 ├── templates/            # Template HTML
-│   ├── upload.html       # Pagina di upload
-│   ├── confirm.html      # Pagina di conferma
-│   └── results.html      # Pagina risultati
+│   ├── upload.html       # Pagina di upload multiplo
+│   ├── confirm.html      # Pagina di conferma upload
+│   └── results.html      # Pagina risultati finali
 ├── .gitignore           # File da ignorare
 ├── LICENSE              # Licenza MIT
 └── README.md            # Questo file
@@ -99,10 +100,11 @@ PORT=8080 python app.py
 
 ## 📝 Utilizzo
 
-1. **Carica i file**: Trascina i CSV RAW di Adobe Analytics nella pagina web
-2. **Conferma**: Verifica che i file siano stati caricati correttamente
-3. **Elabora**: Clicca "Vai all'elaborazione" per processare i dati
-4. **Scarica**: Ottieni i file XLSX con i dati processati e i grafici
+1. **Carica i file**: Trascina uno o più CSV RAW di Adobe Analytics nella pagina web
+2. **Conferma**: Verifica che i file siano stati caricati e riconosciuti correttamente
+3. **Elabora**: Clicca "Vai all'elaborazione" per processare automaticamente tutti i dati
+4. **Visualizza**: Controlla i risultati in 4 tabelle (IT/EN Channels e Traffic)
+5. **Scarica**: Ottieni i file XLSX con i dati processati e i grafici nativi Excel
 
 ## 🎨 Caratteristiche tecniche
 

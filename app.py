@@ -10,7 +10,6 @@ import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash
 from csv_pipeline import parse_channels, parse_traffic
 
-from url_title import extract_article_title
 
 
 app = Flask(__name__)
@@ -30,38 +29,6 @@ class StoredFile:
 PROCESSED_FILES: dict[str, StoredFile] = {}
 
 
-def _detect_url_column(df: pd.DataFrame) -> Optional[str]:
-    # Prefer exact 'Page' if present in any case
-    for c in df.columns:
-        if str(c).strip().lower() == "page":
-            return c
-    # Heuristic: choose object-like column with many URL/path-looking values
-    best_col = None
-    best_score = 0.0
-    for c in df.columns:
-        series = df[c].astype(str)
-        sample = series.head(200)
-        # Score: proportion of values that look like a path or URL
-        looks_like = sample.str.match(r"^(https?://|/).+", na=False)
-        score = looks_like.mean()
-        # Boost if it's the first column
-        if c == df.columns[0]:
-            score += 0.05
-        if score > best_score:
-            best_score = score
-            best_col = c
-    # Require minimum confidence
-    if best_score >= 0.3:
-        return best_col
-    return None
-
-
-def _process_dataframe(df: pd.DataFrame, url_col: Optional[str]) -> tuple[pd.DataFrame, Optional[str]]:
-    if url_col is None or url_col not in df.columns:
-        return df, "Colonna URL non identificata in modo affidabile. Seleziona manualmente e riprova."
-    out = df.copy()
-    out["Titolo"] = out[url_col].apply(extract_article_title)
-    return out, None
 
 
 def _is_channels_freeform_csv(content_bytes: bytes) -> bool:
@@ -97,32 +64,6 @@ def _is_traffic_freeform_csv(content_bytes: bytes) -> bool:
     )
 
 
-def _build_channels_xlsx_from_raw(csv_path: str) -> str:
-    df = parse_channels(csv_path)
-    ch_cols = ["Organic Search","Direct","Internal traffic","Referring Domains","Social Networks"]
-    it = df[df["lang"] == "IT"][ ["ArticleKey"] + ch_cols ].copy()
-    en = df[df["lang"] == "EN"][ ["ArticleKey"] + ch_cols ].copy()
-    tmp = tempfile.NamedTemporaryFile(prefix="channels_", suffix=".xlsx", delete=False)
-    xlsx_path = tmp.name
-    tmp.close()
-    with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
-        it.to_excel(writer, sheet_name="Articoli_IT", index=False)
-        en.to_excel(writer, sheet_name="Articoli_EN", index=False)
-    return xlsx_path
-
-
-def _build_traffic_xlsx_from_raw(csv_path: str) -> str:
-    df = parse_traffic(csv_path)
-    cols = ["Entries","Exit Rate","Time Spent per Visit (seconds)","Unique Visitors","Page Views"]
-    it = df[df["lang"] == "IT"][ ["ArticleKey"] + cols ].copy()
-    en = df[df["lang"] == "EN"][ ["ArticleKey"] + cols ].copy()
-    tmp = tempfile.NamedTemporaryFile(prefix="traffic_", suffix=".xlsx", delete=False)
-    xlsx_path = tmp.name
-    tmp.close()
-    with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
-        it.to_excel(writer, sheet_name="Articoli_IT", index=False)
-        en.to_excel(writer, sheet_name="Articoli_EN", index=False)
-    return xlsx_path
 
 
 def _normalize_articlekey_for_split(path: str) -> str:
@@ -314,98 +255,8 @@ def index():
     return render_template("upload.html")
 
 
-@app.route("/process", methods=["POST"]) 
-def process():
-    file = request.files.get("file")
-    if not file:
-        flash("Seleziona o trascina un file CSV.")
-        return redirect(url_for("index"))
-    try:
-        content = file.read()
-        # Persist original upload immediately for downstream parsing
-        orig_tmp = tempfile.NamedTemporaryFile(prefix="original_", suffix=".csv", delete=False)
-        orig_path = orig_tmp.name
-        orig_tmp.write(content)
-        orig_tmp.flush()
-        orig_tmp.close()
-
-        # If it's a Channels/Traffic Freeform CSV, build XLSX later on split
-        xlsx_path = None
-        if _is_channels_freeform_csv(content) or _is_traffic_freeform_csv(content):
-            xlsx_path = None
-
-        # Also load into pandas for preview/URL extraction flows
-        df = pd.read_csv(io.BytesIO(content), sep=None, engine="python", encoding="utf-8")
-    except Exception as e:
-        flash(f"Errore nella lettura del CSV: {e}")
-        return redirect(url_for("index"))
-
-    url_col = _detect_url_column(df)
-    # Build initial preview of the ORIGINAL upload (no split yet)
-    processed, err = _process_dataframe(df, url_col)
-    original_preview = df.head(100)
-    is_channels = _is_channels_freeform_csv(content)
-    is_traffic = _is_traffic_freeform_csv(content)
-    it_rows = en_rows = None
-    csv_df = processed  # placeholder; not shown until split
-
-    # persist original and processed for later reprocessing
-    token = str(uuid.uuid4())
-    proc_tmp = tempfile.NamedTemporaryFile(prefix="processed_", suffix=".csv", delete=False)
-    proc_path = proc_tmp.name
-    proc_tmp.close()
-    csv_df.to_csv(proc_path, index=False)
-    st = StoredFile(original_path=orig_path, processed_path=proc_path, processed_xlsx=xlsx_path)
-    st.file_type = 'channels' if is_channels else ('traffic' if is_traffic else None)
-    st.split_done = False
-    st.original_preview = original_preview
-    PROCESSED_FILES[token] = st
-
-    # prepare preview
-    preview_rows = processed.head(100).to_dict(orient="records")
-    return render_template(
-        "preview.html",
-        columns=list(processed.columns),
-        rows=preview_rows,
-        token=token,
-        detected_col=url_col,
-        warning=err,
-        is_channels=is_channels,
-        is_traffic=is_traffic,
-        split_done=False,
-        orig_columns=list(original_preview.columns),
-        orig_rows=original_preview.to_dict(orient="records"),
-    )
 
 
-@app.route("/preview/<token>")
-def preview_token(token: str):
-    stored = PROCESSED_FILES.get(token)
-    if not stored or not os.path.exists(stored.original_path):
-        flash("Sessione non trovata.")
-        return redirect(url_for("index"))
-    
-    # No batch tracking in simplified flow
-    batch_token = None
-    
-    # Render original preview state
-    orig = stored.original_preview if stored.original_preview is not None else pd.read_csv(
-        stored.original_path, sep=None, engine="python", encoding="utf-8", on_bad_lines="skip"
-    ).head(100)
-    return render_template(
-        "preview.html",
-        columns=["Titolo"],  # hidden in this path; page expects columns variable
-        rows=[],
-        token=token,
-        detected_col=None,
-        warning=None,
-        is_channels=(stored.file_type == 'channels'),
-        is_traffic=(stored.file_type == 'traffic'),
-        split_done=stored.split_done,
-        orig_columns=list(orig.columns),
-        orig_rows=orig.to_dict(orient="records"),
-        batch_token=batch_token,
-    )
 
 
 @app.route("/process_all", methods=["POST"])
@@ -548,85 +399,6 @@ def process_all():
                          original_counts=original_counts,
                          xlsx_links=xlsx_links)
 
-@app.route("/process_batch_run", methods=["POST"]) 
-def process_batch_run():
-    tokens = request.form.getlist("tokens")
-    if not tokens:
-        flash("Nessun file da elaborare.")
-        return redirect(url_for("index"))
-    merged = {
-        "channels": {"IT": [], "EN": []},
-        "traffic": {"IT": [], "EN": []},
-    }
-    for t in tokens:
-        st = PROCESSED_FILES.get(t)
-        if not st or not os.path.exists(st.original_path) or st.file_type not in {"channels","traffic"}:
-            continue
-        try:
-            if st.file_type == "channels":
-                df = parse_channels(st.original_path)
-                cols = ["Organic Search","Direct","Internal traffic","Referring Domains","Social Networks"]
-            else:
-                df = parse_traffic(st.original_path)
-                cols = ["Entries","Exit Rate","Time Spent per Visit (seconds)","Unique Visitors","Page Views"]
-            it_df = df[df["lang"] == "IT"][ ["ArticleKey"] + cols ].copy()
-            en_df = df[df["lang"] == "EN"][ ["ArticleKey"] + cols ].copy()
-            # normalize and reduce ArticleKey to extracted name
-            for d in (it_df, en_df):
-                d["ArticleKey"] = d["ArticleKey"].apply(_normalize_articlekey_for_split)
-                d["ArticleKey"] = d["ArticleKey"].apply(lambda p: _extract_name_from_key(p, capitalize_first=True))
-            merged[st.file_type]["IT"].append(it_df)
-            merged[st.file_type]["EN"].append(en_df)
-        except Exception:
-            continue
-    # concat and render summary page with links to XLSX builds
-    outputs = {}
-    for typ in ("channels","traffic"):
-        for lang in ("IT","EN"):
-            lst = merged[typ][lang]
-            if lst:
-                outputs[(typ, lang)] = pd.concat(lst, ignore_index=True)
-    # Build XLSX files for each type present
-    links = {}
-    if any(k[0]=="channels" for k in outputs.keys()):
-        it = outputs.get(("channels","IT"), pd.DataFrame())
-        en = outputs.get(("channels","EN"), pd.DataFrame())
-        tmp = tempfile.NamedTemporaryFile(prefix="channels_batch_", suffix=".xlsx", delete=False)
-        p = tmp.name; tmp.close()
-        with pd.ExcelWriter(p, engine="openpyxl") as w:
-            if not it.empty: it.to_excel(w, sheet_name="Articoli_IT", index=False)
-            if not en.empty: en.to_excel(w, sheet_name="Articoli_EN", index=False)
-        token_x = str(uuid.uuid4()); PROCESSED_FILES[token_x] = StoredFile(p, p, p)
-        links["channels_xlsx"] = url_for("download_xlsx", token=token_x)
-    if any(k[0]=="traffic" for k in outputs.keys()):
-        it = outputs.get(("traffic","IT"), pd.DataFrame())
-        en = outputs.get(("traffic","EN"), pd.DataFrame())
-        tmp = tempfile.NamedTemporaryFile(prefix="traffic_batch_", suffix=".xlsx", delete=False)
-        p = tmp.name; tmp.close()
-        with pd.ExcelWriter(p, engine="openpyxl") as w:
-            if not it.empty: it.to_excel(w, sheet_name="Articoli_IT", index=False)
-            if not en.empty: en.to_excel(w, sheet_name="Articoli_EN", index=False)
-        token_x = str(uuid.uuid4()); PROCESSED_FILES[token_x] = StoredFile(p, p, p)
-        links["traffic_xlsx"] = url_for("download_xlsx", token=token_x)
-    
-    # Build combined XLSX with both channels and traffic
-    if any(k[0]=="channels" for k in outputs.keys()) and any(k[0]=="traffic" for k in outputs.keys()):
-        tmp = tempfile.NamedTemporaryFile(prefix="combined_batch_", suffix=".xlsx", delete=False)
-        p = tmp.name; tmp.close()
-        with pd.ExcelWriter(p, engine="openpyxl") as w:
-            # Channels sheets
-            ch_it = outputs.get(("channels","IT"), pd.DataFrame())
-            ch_en = outputs.get(("channels","EN"), pd.DataFrame())
-            if not ch_it.empty: ch_it.to_excel(w, sheet_name="Canali_IT", index=False)
-            if not ch_en.empty: ch_en.to_excel(w, sheet_name="Canali_EN", index=False)
-            # Traffic sheets
-            tr_it = outputs.get(("traffic","IT"), pd.DataFrame())
-            tr_en = outputs.get(("traffic","EN"), pd.DataFrame())
-            if not tr_it.empty: tr_it.to_excel(w, sheet_name="Traffico_IT", index=False)
-            if not tr_en.empty: tr_en.to_excel(w, sheet_name="Traffico_EN", index=False)
-        token_x = str(uuid.uuid4()); PROCESSED_FILES[token_x] = StoredFile(p, p, p)
-        links["combined_xlsx"] = url_for("download_xlsx", token=token_x)
-    return render_template("batch_run.html", links=links, outputs_meta=[(k[0],k[1], len(v)) for k,v in outputs.items()], batch_token=request.form.get("batch_token", ""))
 @app.route("/process_batch", methods=["POST"]) 
 def process_batch():
     files = request.files.getlist("files")
@@ -642,16 +414,14 @@ def process_batch():
             orig_tmp.write(content)
             orig_tmp.flush(); orig_tmp.close()
 
-            df = pd.read_csv(io.BytesIO(content), sep=None, engine="python", encoding="utf-8")
-            url_col = _detect_url_column(df)
-            processed, err = _process_dataframe(df, url_col)
-            original_preview = df.head(100)
+            # Just store the file, no processing needed for batch upload
+            original_preview = None
 
             token = str(uuid.uuid4())
+            # Create dummy processed path for compatibility
             proc_tmp = tempfile.NamedTemporaryFile(prefix="processed_", suffix=".csv", delete=False)
             proc_path = proc_tmp.name
             proc_tmp.close()
-            processed.to_csv(proc_path, index=False)
 
             st = StoredFile(original_path=orig_path, processed_path=proc_path, processed_xlsx=None)
             st.file_type = 'channels' if _is_channels_freeform_csv(content) else ('traffic' if _is_traffic_freeform_csv(content) else None)
@@ -675,113 +445,21 @@ def process_batch():
     return render_template("confirm.html", items=summary)
 
 
-@app.route("/download/<token>")
-def download(token: str):
-    stored = PROCESSED_FILES.get(token)
-    path = stored.processed_path if stored else None
-    if not path or not os.path.exists(path):
-        flash("File non trovato o scaduto.")
-        return redirect(url_for("index"))
-    return send_file(path, as_attachment=True, download_name="processed_data.csv")
 
 
 @app.route("/download_xlsx/<token>")
 def download_xlsx(token: str):
     stored = PROCESSED_FILES.get(token)
     path = stored.processed_xlsx if stored else None
-    if (not path or not os.path.exists(path)) and stored and stored.file_type in {"channels","traffic"}:
-        # build on-demand if detection failed earlier
-        path = _build_channels_xlsx_from_raw(stored.original_path) if stored.file_type == 'channels' else _build_traffic_xlsx_from_raw(stored.original_path)
-        stored.processed_xlsx = path
     if not path or not os.path.exists(path):
-        flash("File XLSX non disponibile per questo upload.")
+        flash("File XLSX non disponibile.")
         return redirect(url_for("index"))
-    fname = "channels_ristrutturato.xlsx" if stored and stored.file_type == 'channels' else "traffic_ristrutturato.xlsx"
+    # Use generic filename since we don't know the type anymore
+    fname = "processed_data.xlsx"
     return send_file(path, as_attachment=True, download_name=fname)
 
 
 
-@app.route("/reprocess", methods=["POST"]) 
-def reprocess():
-    token = request.form.get("token")
-    action = request.form.get("action")
-    col = request.form.get("url_col")
-    stored = PROCESSED_FILES.get(token)
-    if not stored or not os.path.exists(stored.original_path):
-        flash("Sessione scaduta, ricarica il CSV.")
-        return redirect(url_for("index"))
-    if stored and stored.file_type in {"channels","traffic"} and (action == "split" or action == "normalize" or stored.split_done):
-        # Rebuild split preview; column selection not needed
-        try:
-            if stored.file_type == 'channels':
-                df_parsed = parse_channels(stored.original_path)
-                cols = ["Organic Search","Direct","Internal traffic","Referring Domains","Social Networks"]
-            else:
-                df_parsed = parse_traffic(stored.original_path)
-                cols = ["Entries","Exit Rate","Time Spent per Visit (seconds)","Unique Visitors","Page Views"]
-        except Exception as e:
-            flash(f"Separazione IT/EN fallita: {e}")
-            return redirect(url_for("index"))
-        it_df = df_parsed[df_parsed["lang"] == "IT"][ ["ArticleKey"] + cols ].copy()
-        en_df = df_parsed[df_parsed["lang"] == "EN"][ ["ArticleKey"] + cols ].copy()
-        split_done = True
-        # Optional normalization of ArticleKey after split
-        if action == "normalize" or stored.normalized:
-            it_df["ArticleKey"] = it_df["ArticleKey"].apply(_normalize_articlekey_for_split)
-            en_df["ArticleKey"] = en_df["ArticleKey"].apply(_normalize_articlekey_for_split)
-            it_df["ArticleKey"] = it_df["ArticleKey"].apply(lambda p: _extract_name_from_key(p, capitalize_first=True))
-            en_df["ArticleKey"] = en_df["ArticleKey"].apply(lambda p: _extract_name_from_key(p, capitalize_first=True))
-            stored.normalized = True
-        # update processed CSV (concatenated with lang)
-        csv_df = pd.concat([
-            it_df.assign(lang="IT"),
-            en_df.assign(lang="EN"),
-        ], ignore_index=True)
-        csv_df.to_csv(stored.processed_path, index=False)
-        # build XLSX on first split
-        if not stored.processed_xlsx:
-            stored.processed_xlsx = _build_channels_xlsx_from_raw(stored.original_path) if stored.file_type == 'channels' else _build_traffic_xlsx_from_raw(stored.original_path)
-        stored.split_done = True
-        # No batch tracking in simplified flow
-        batch_token = None
-        
-        return render_template(
-            "preview.html",
-            is_channels=(stored.file_type == 'channels'),
-            is_traffic=(stored.file_type == 'traffic'),
-            split_done=split_done,
-            it_columns=list(it_df.columns),
-            en_columns=list(en_df.columns),
-            it_rows=it_df.head(100).to_dict(orient="records"),
-            en_rows=en_df.head(100).to_dict(orient="records"),
-            token=token,
-            detected_col=None,
-            warning=None,
-            batch_token=batch_token,
-        )
-    else:
-        try:
-            df = pd.read_csv(
-                stored.original_path,
-                sep=None,
-                engine="python",
-                encoding="utf-8",
-                on_bad_lines="skip",
-            )
-        except Exception as e:
-            flash(f"Errore nella rilettura del CSV originale: {e}")
-            return redirect(url_for("index"))
-        processed, err = _process_dataframe(df, col)
-        processed.to_csv(stored.processed_path, index=False)
-        preview_rows = processed.head(100).to_dict(orient="records")
-        return render_template(
-            "preview.html",
-            columns=list(processed.columns),
-            rows=preview_rows,
-            token=token,
-            detected_col=col,
-            warning=err,
-        )
 
 
 if __name__ == "__main__":

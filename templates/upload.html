@@ -26,23 +26,10 @@
       {% endwith %}
 
       <h2>Carica CSV RAW da Adobe (drag & drop)</h2>
-      <form id="form" action="/process" method="post" enctype="multipart/form-data">
-        <div id="drop" class="dropzone">
-          Trascina qui il CSV oppure clicca per selezionarlo
-          <div class="hint">Vengono riconosciute automaticamente le colonne URL (Page/URL/Path)</div>
-          <input id="file" type="file" name="file" accept=".csv" style="display:none" />
-        </div>
-        <div class="actions">
-          <button id="submit" type="submit" disabled>Elabora</button>
-          <span id="filename"></span>
-        </div>
-      </form>
-
-      <hr style="margin:32px 0;" />
-      <h3>Elaborazione multipla</h3>
       <form id="form-multi" action="/process_batch" method="post" enctype="multipart/form-data">
         <div id="drop-multi" class="dropzone">
-          Trascina qui più CSV oppure clicca per selezionarli
+          Trascina qui uno o più CSV oppure clicca per selezionarli
+          <div class="hint">Supporta file Channels e Traffic da Adobe Analytics</div>
           <input id="files" type="file" name="files" accept=".csv" multiple style="display:none" />
         </div>
         <div class="actions">
@@ -57,34 +44,11 @@
       </p>
     </div>
     <script>
-      const drop = document.getElementById('drop');
-      const input = document.getElementById('file');
-      const submit = document.getElementById('submit');
-      const nameSpan = document.getElementById('filename');
-
-      drop.addEventListener('click', () => input.click());
-      drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
-      drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
-      drop.addEventListener('drop', (e) => {
-        e.preventDefault();
-        drop.classList.remove('dragover');
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-          input.files = e.dataTransfer.files;
-          nameSpan.textContent = e.dataTransfer.files[0].name;
-          submit.disabled = false;
-        }
-      });
-      input.addEventListener('change', () => {
-        if (input.files && input.files[0]) {
-          nameSpan.textContent = input.files[0].name;
-          submit.disabled = false;
-        }
-      });
-
       const dropM = document.getElementById('drop-multi');
       const inputsM = document.getElementById('files');
       const submitM = document.getElementById('submit-multi');
       const namesM = document.getElementById('filenames');
+      
       dropM.addEventListener('click', () => inputsM.click());
       dropM.addEventListener('dragover', (e) => { e.preventDefault(); dropM.classList.add('dragover'); });
       dropM.addEventListener('dragleave', () => dropM.classList.remove('dragover'));
