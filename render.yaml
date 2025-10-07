@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    startCommand: python3 app.py
     envVars:
       - key: PORT
         value: 10000
@@ -12,3 +12,5 @@ services:
         value: 3.11.9
       - key: PYENV_VERSION
         value: 3.11.9
+      - key: FLASK_ENV
+        value: production

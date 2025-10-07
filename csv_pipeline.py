@@ -57,10 +57,21 @@ def parse_channels(csv_path: str) -> pd.DataFrame:
     idx = next((i for i, ln in enumerate(lines) if "Freeform table" in ln), None)
     if idx is None:
         raise ValueError("Freeform table not found in channels CSV.")
-    header1_i = next((i for i in range(idx+1, min(len(lines), idx+50))
-                     if lines[i].startswith(",") and "Page Views" not in lines[i] and lines[i].count(",")>=4), None)
+    
+    # Versione elastica: cerca qualsiasi riga header che contenga colonne di canali
+    header1_i = None
+    for i in range(idx+1, min(len(lines), idx+50)):
+        line = lines[i].strip()
+        if line.startswith(",") and line.count(",") >= 3:  # Almeno 4 colonne
+            # Verifica se contiene keywords tipiche dei canali
+            channel_keywords = ["search", "direct", "internal", "referring", "social", "paid"]
+            if any(keyword in line.lower() for keyword in channel_keywords):
+                header1_i = i
+                break
+    
     if header1_i is None:
         raise ValueError("Channels header not found.")
+    
     channels = [h.strip() for h in lines[header1_i].split(",")[1:]]
     start = header1_i + 2  # skip ",Page Views,..." line
     rows = []

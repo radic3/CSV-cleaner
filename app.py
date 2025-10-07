@@ -9,11 +9,25 @@ import pandas as pd
   # Use non-interactive backend
 from flask import Flask, render_template, request, redirect, url_for, send_file, flash
 from csv_pipeline import parse_channels, parse_traffic
+from flexible_parser import (
+    is_channels_csv_flexible, 
+    is_traffic_csv_flexible, 
+    get_flexible_columns,
+    analyze_csv_structure
+)
 
 
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")
+
+
+# Ensure static files are served with proper headers for CSP
+@app.after_request
+def after_request(response):
+    # Add basic CSP header that allows external scripts but blocks inline scripts
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';"
+    return response
 
 class StoredFile:
     def __init__(self, original_path: str, processed_path: str, processed_xlsx: Optional[str] = None):
@@ -24,44 +38,38 @@ class StoredFile:
         self.split_done = False           # user has executed IT/EN split
         self.original_preview: Optional[pd.DataFrame] = None
         self.normalized = False           # user has normalized ArticleKey
+        self.columns: Optional[list] = None  # Store the actual columns for this file
 
 
 PROCESSED_FILES: dict[str, StoredFile] = {}
+UPLOADED_TOKENS: list[str] = []  # Lista globale dei token caricati
 
 
 
+
+def _get_channels_columns(content_bytes: bytes) -> list:
+    """
+    Ottieni le colonne effettive del file channels usando il parser elastico
+    """
+    try:
+        return get_flexible_columns(content_bytes)
+    except Exception:
+        return ["Organic Search","Direct","Internal traffic","Referring Domains","Social Networks"]
 
 def _is_channels_freeform_csv(content_bytes: bytes) -> bool:
-    try:
-        text = content_bytes.decode("utf-8", errors="ignore")
-    except Exception:
-        return False
-    head_lines = [ln.strip() for ln in text.splitlines()[:80]]
-    head = "\n".join(head_lines)
-    required_tokens = [
-        "Freeform table",
-        "Organic Search",
-        "Direct",
-        "Internal traffic",
-        "Referring Domains",
-        "Social Networks",
-    ]
-    return all(any(tok in ln for ln in head_lines) if tok == "Freeform table" else (tok in head) for tok in required_tokens)
+    """
+    Versione elastica del rilevamento file channels
+    Si adatta automaticamente ai nomi delle colonne effettive
+    """
+    return is_channels_csv_flexible(content_bytes)
 
 
 def _is_traffic_freeform_csv(content_bytes: bytes) -> bool:
-    try:
-        text = content_bytes.decode("utf-8", errors="ignore")
-    except Exception:
-        return False
-    head_lines = [ln.strip() for ln in text.splitlines()[:80]]
-    head = "\n".join(head_lines)
-    return (
-        "Freeform table" in head
-        and "Entries" in head
-        and "Unique Visitors" in head
-        and "Page Views" in head
-    )
+    """
+    Versione elastica del rilevamento file traffic
+    Si adatta automaticamente ai nomi delle colonne effettive
+    """
+    return is_traffic_csv_flexible(content_bytes)
 
 
 
@@ -111,7 +119,8 @@ def _add_excel_charts_to_sheet(worksheet, df: pd.DataFrame, lang: str):
         
         from openpyxl.chart import PieChart, BarChart, Reference
         
-        categories = ['Organic Search', 'Direct', 'Internal traffic', 'Referring Domains', 'Social Networks']
+        # Get the actual columns from the dataframe
+        categories = [col for col in df.columns if col != 'ArticleKey']
         
         # 1. Pie Chart - Sum of each category
         pie_sums = chart_df[categories].sum()
@@ -254,6 +263,33 @@ def _add_sum_row_to_dataframe(df: pd.DataFrame, numeric_cols: list) -> pd.DataFr
 def index():
     return render_template("upload.html")
 
+@app.route("/clear_session", methods=["POST"])
+def clear_session():
+    """Pulisce tutti i file caricati"""
+    global UPLOADED_TOKENS
+    
+    # Pulisci i file temporanei
+    for token in UPLOADED_TOKENS:
+        stored = PROCESSED_FILES.get(token)
+        if stored:
+            try:
+                if os.path.exists(stored.original_path):
+                    os.unlink(stored.original_path)
+                if os.path.exists(stored.processed_path):
+                    os.unlink(stored.processed_path)
+                if stored.processed_xlsx and os.path.exists(stored.processed_xlsx):
+                    os.unlink(stored.processed_xlsx)
+            except:
+                pass
+            # Rimuovi dal dizionario
+            PROCESSED_FILES.pop(token, None)
+    
+    # Pulisci la lista globale
+    UPLOADED_TOKENS = []
+    
+    flash("Sessione pulita. Tutti i file sono stati rimossi.")
+    return redirect(url_for("index"))
+
 
 
 
@@ -263,6 +299,11 @@ def index():
 def process_all():
     """Process all uploaded files and show results with 4 tables"""
     tokens = request.form.getlist("tokens")
+    
+    # Se non ci sono token nel form, usa tutti quelli globali
+    if not tokens:
+        tokens = UPLOADED_TOKENS
+    
     if not tokens:
         flash("Nessun file da elaborare.")
         return redirect(url_for("index"))
@@ -290,10 +331,10 @@ def process_all():
             # Process based on file type
             if stored.file_type == "channels":
                 df = parse_channels(stored.original_path)
-                cols = ["Organic Search","Direct","Internal traffic","Referring Domains","Social Networks"]
+                cols = stored.columns or ["Organic Search","Direct","Internal traffic","Referring Domains","Social Networks"]
             elif stored.file_type == "traffic":
                 df = parse_traffic(stored.original_path)
-                cols = ["Entries","Exit Rate","Time Spent per Visit (seconds)","Unique Visitors","Page Views"]
+                cols = stored.columns or ["Entries","Exit Rate","Time Spent per Visit (seconds)","Unique Visitors","Page Views"]
             else:
                 continue
                 
@@ -325,7 +366,15 @@ def process_all():
             df = pd.concat(dfs, ignore_index=True)
             # Add sum row for channels data
             if "channels" in key:
-                numeric_cols = ["Organic Search","Direct","Internal traffic","Referring Domains","Social Networks"]
+                # Get columns from the first file of this type
+                numeric_cols = None
+                for token in tokens:
+                    stored = PROCESSED_FILES.get(token)
+                    if stored and stored.file_type == "channels" and stored.columns:
+                        numeric_cols = stored.columns
+                        break
+                if not numeric_cols:
+                    numeric_cols = ["Organic Search","Direct","Internal traffic","Referring Domains","Social Networks"]
                 df = _add_sum_row_to_dataframe(df, numeric_cols)
             elif "traffic" in key:
                 numeric_cols = ["Entries","Exit Rate","Time Spent per Visit (seconds)","Unique Visitors","Page Views"]
@@ -405,6 +454,8 @@ def process_batch():
     if not files:
         flash("Seleziona o trascina uno o più file CSV.")
         return redirect(url_for("index"))
+    
+    
     summary = []
     for f in files:
         try:
@@ -427,7 +478,17 @@ def process_batch():
             st.file_type = 'channels' if _is_channels_freeform_csv(content) else ('traffic' if _is_traffic_freeform_csv(content) else None)
             st.split_done = False
             st.original_preview = original_preview
+            
+            # Store the actual columns for this file
+            if st.file_type == 'channels':
+                st.columns = _get_channels_columns(content)
+            elif st.file_type == 'traffic':
+                st.columns = ["Entries","Exit Rate","Time Spent per Visit (seconds)","Unique Visitors","Page Views"]
+            
             PROCESSED_FILES[token] = st
+            
+            # Aggiungi il token alla lista globale per mantenere i file caricati
+            UPLOADED_TOKENS.append(token)
 
             summary.append({
                 "filename": f.filename,
@@ -442,7 +503,27 @@ def process_batch():
                 "token": None,
                 "status": f"Errore: {e}",
             })
-    return render_template("confirm.html", items=summary)
+    
+    # Crea un summary completo con tutti i file caricati (vecchi + nuovi)
+    all_items = []
+    for token in UPLOADED_TOKENS:
+        stored = PROCESSED_FILES.get(token)
+        if stored and os.path.exists(stored.original_path):
+            filename = os.path.basename(stored.original_path)
+            # Rimuovi il prefisso temporaneo per un nome più pulito
+            if filename.startswith('original_'):
+                filename = filename[9:]  # Rimuovi 'original_'
+            all_items.append({
+                "filename": filename,
+                "type": stored.file_type or "unknown",
+                "token": token,
+                "status": "OK",
+            })
+    
+    # Aggiungi eventuali errori dell'upload corrente
+    all_items.extend([item for item in summary if item["status"] != "OK"])
+    
+    return render_template("confirm.html", items=all_items)
 
 
 
@@ -464,6 +545,7 @@ def download_xlsx(token: str):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8080"))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    debug_mode = os.environ.get("FLASK_ENV") != "production"
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
 
 

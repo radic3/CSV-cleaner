@@ -1,145 +1,90 @@
-# CSV Cleaner
+# CSV Cleaner - Adobe Analytics Data Processor
 
-Un'applicazione web Flask per processare automaticamente i file CSV RAW di Adobe Analytics, separando i contenuti IT/EN e normalizzando i titoli degli articoli.
+Un'applicazione Flask per processare file CSV RAW da Adobe Analytics, con supporto per dati di canali e traffico.
 
 ## 🚀 Funzionalità
 
-- **Upload multiplo**: Carica uno o più file CSV contemporaneamente
-- **Separazione IT/EN**: Riconosce automaticamente i contenuti italiani e inglesi
-- **Normalizzazione titoli**: Estrae e pulisce i titoli degli articoli dagli URL
-- **Grafici nativi Excel**: Genera grafici dinamici e modificabili nei file XLSX
-- **Download multipli**: File separati per Canali, Traffico e un file completo
-- **Processo semplificato**: Upload → Conferma → Elaborazione → Risultati
+- **Upload Drag & Drop**: Caricamento intuitivo di file CSV
+- **Riconoscimento Automatico**: Identifica automaticamente file channels o traffic
+- **Parsing Elastico**: Si adatta automaticamente ai nomi delle colonne
+- **Elaborazione Intelligente**: Normalizza URL, estrae titoli, divide per lingua
+- **Export Excel**: Genera file XLSX con grafici e analisi
+- **CSP Sicuro**: Headers di sicurezza configurati per produzione
 
-## 📊 Tipi di file supportati
-
-- **Canali RAW**: File di canalizzazione da Adobe Analytics
-- **Traffico RAW**: File di traffico da Adobe Analytics
-
-## 🎯 Output
-
-### File generati:
-- `Channels_.xlsx` - Dati di canalizzazione con grafici
-- `Traffic_.xlsx` - Dati di traffico con grafici  
-- `Combined_.xlsx` - File unico con tutti i dati
-
-### Grafici inclusi:
-- **Canali**: Grafico a torta (distribuzione) + Grafico a barre (confronto per articolo)
-- **Traffico**: Grafico a barre (confronto per articolo)
-
-## 🚀 Deployment su Render.com
-
-### **Deploy automatico:**
-1. **Fai fork** di questa repository
-2. **Vai su [Render.com](https://render.com)** e crea un account
-3. **Clicca "New +"** → **"Web Service"**
-4. **Collega GitHub** e seleziona la repository
-5. **Configurazione**:
-   - **Name**: `csv-cleaner`
-   - **Environment**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `python app.py`
-6. **Clicca "Create Web Service"**
-
-L'applicazione sarà disponibile su `https://csv-cleaner.onrender.com`
-
-## 🛠️ Installazione locale
-
-1. **Clona la repository**:
-```bash
-git clone https://github.com/radic3/csv-cleaner.git
-cd csv-cleaner
-```
-
-2. **Crea ambiente virtuale**:
-```bash
-python3 -m venv .venv
-source .venv/bin/activate  # Su Windows: .venv\Scripts\activate
-```
-
-3. **Installa dipendenze**:
-```bash
-pip install -r requirements.txt
-```
-
-4. **Avvia l'applicazione**:
-```bash
-python app.py
-```
-
-L'applicazione sarà disponibile su `http://localhost:8090`
-
-## 📁 Struttura del progetto
+## 📁 Struttura
 
 ```
-csv-cleaner/
 ├── app.py                 # Applicazione Flask principale
-├── csv_pipeline.py        # Logica di parsing dei CSV
-├── url_title.py          # Estrazione e normalizzazione titoli
-├── requirements.txt      # Dipendenze Python
-├── render.yaml           # Configurazione Render.com
-├── Procfile              # Comando di avvio
+├── csv_pipeline.py       # Logica di parsing CSV
+├── flexible_parser.py    # Parser elastico per riconoscimento file
+├── debug_file.py         # Script di debug per analisi file
+├── static/
+│   └── js/
+│       └── upload.js     # JavaScript per drag & drop
 ├── templates/            # Template HTML
-│   ├── upload.html       # Pagina di upload multiplo
-│   ├── confirm.html      # Pagina di conferma upload
-│   └── results.html      # Pagina risultati finali
-├── .gitignore           # File da ignorare
-├── LICENSE              # Licenza MIT
-└── README.md            # Questo file
+└── requirements.txt      # Dipendenze Python
 ```
 
-## 🔧 Configurazione
+## 🛠️ Installazione Locale
 
-### Porta personalizzata
 ```bash
-PORT=8080 python app.py
+# Clona il repository
+git clone <repository-url>
+cd csv-cleaner
+
+# Installa dipendenze
+pip install -r requirements.txt
+
+# Avvia l'applicazione
+python3 app.py
 ```
 
-### Variabili d'ambiente
-- `PORT`: Porta del server (default: 8090)
+L'applicazione sarà disponibile su `http://localhost:8080`
 
-## 📝 Utilizzo
+## 🌐 Deploy su Render
 
-1. **Carica i file**: Trascina uno o più CSV RAW di Adobe Analytics nella pagina web
-2. **Conferma**: Verifica che i file siano stati caricati e riconosciuti correttamente
-3. **Elabora**: Clicca "Vai all'elaborazione" per processare automaticamente tutti i dati
-4. **Visualizza**: Controlla i risultati in 4 tabelle (IT/EN Channels e Traffic)
-5. **Scarica**: Ottieni i file XLSX con i dati processati e i grafici nativi Excel
+Il progetto è configurato per il deploy automatico su Render.com:
 
-## 🎨 Caratteristiche tecniche
+- **File di configurazione**: `render.yaml`
+- **Build command**: `pip install -r requirements.txt`
+- **Start command**: `python3 app.py`
+- **Variabili ambiente**: Configurate in `render.yaml`
 
-- **Framework**: Flask (Python)
-- **Elaborazione dati**: Pandas
-- **Grafici Excel**: Openpyxl
-- **Interfaccia**: HTML/CSS/JavaScript vanilla
-- **Upload**: Drag & drop multiplo
+## 📊 Tipi di File Supportati
 
-## 📈 Esempio di output
+### File Channels
+- Riconosce automaticamente colonne come:
+  - Organic Search, Direct, Internal traffic
+  - Referring Domains, Social Networks, Paid Search
+- Si adatta a variazioni nei nomi delle colonne
 
-I file XLSX contengono:
-- **Tabelle complete** con riga somma
-- **Grafici nativi Excel** completamente modificabili
-- **Fogli separati** per IT e EN
-- **Dati normalizzati** con titoli puliti
+### File Traffic  
+- Riconosce colonne come:
+  - Entries, Exit Rate, Unique Visitors
+  - Page Views, Time Spent per Visit
 
-## 🤝 Contributi
+## 🔧 Debug
 
-I contributi sono benvenuti! Per favore:
+Usa `debug_file.py` per analizzare file problematici:
 
-1. Fai un fork del progetto
-2. Crea un branch per la tua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit le tue modifiche (`git commit -m 'Add some AmazingFeature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Apri una Pull Request
+```bash
+python3 debug_file.py path/to/file.csv
+```
 
-## 📄 Licenza
+## 🔒 Sicurezza
 
-Questo progetto è distribuito sotto licenza MIT. Vedi il file `LICENSE` per maggiori dettagli.
+- **CSP Headers**: Configurati per bloccare script inline
+- **File Statici**: JavaScript servito da file esterni
+- **Validazione Input**: Controlli sui file caricati
 
-## 🆘 Supporto
+## 📝 Changelog
 
-Per problemi o domande, apri una issue su GitHub.
+### v2.0 - Parser Elastico
+- ✅ Riconoscimento automatico dei tipi di file
+- ✅ Adattamento ai nomi delle colonne effettive
+- ✅ Risoluzione problemi CSP
+- ✅ Sistema di debug migliorato
 
----
-
-**CSV Cleaner** - Automazione del processing dei dati Adobe Analytics
+### v1.0 - Versione Base
+- Upload e processing file CSV Adobe Analytics
+- Export Excel con grafici
